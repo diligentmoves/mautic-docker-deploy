@@ -1,0 +1,110 @@
+version: "3.8"
+
+x-mautic-volumes: &mautic-volumes
+  - ./mautic/config:/var/www/html/config:z
+  - ./mautic/logs:/var/www/html/var/logs:z
+  - ./mautic/media/files:/var/www/html/media/files:z
+  - ./mautic/media/images:/var/www/html/media/images:z
+  - ./cron:/opt/mautic/cron:z
+
+services:
+  db:
+    image: mariadb:11.2
+    container_name: mautic-db
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      retries: 5
+    networks:
+      - mautic
+
+  mautic_web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mautic-web
+    ports:
+      - "8081:80"
+    volumes: *mautic-volumes
+    environment:
+      - DOCKER_MAUTIC_ROLE=web
+    env_file:
+      - .mautic_env
+    depends_on:
+      db:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mautic.rule=Host(`${MAUTIC_DOMAIN}`)"
+      - "traefik.http.routers.mautic.entrypoints=websecure"
+      - "traefik.http.routers.mautic.tls.certresolver=myresolver"
+    networks:
+      - mautic
+      - traefik
+
+  mautic_cron:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mautic-cron
+    volumes: *mautic-volumes
+    environment:
+      - DOCKER_MAUTIC_ROLE=cron
+    env_file:
+      - .mautic_env
+    depends_on:
+      mautic_web:
+        condition: service_started
+    networks:
+      - mautic
+
+  mautic_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mautic-worker
+    volumes: *mautic-volumes
+    environment:
+      - DOCKER_MAUTIC_ROLE=worker
+    env_file:
+      - .mautic_env
+    depends_on:
+      mautic_web:
+        condition: service_started
+    networks:
+      - mautic
+
+  traefik:
+    image: traefik:v2.10
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
+      - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./letsencrypt:/letsencrypt"
+    networks:
+      - traefik
+
+volumes:
+  db_data:
+
+networks:
+  mautic:
+  traefik:
