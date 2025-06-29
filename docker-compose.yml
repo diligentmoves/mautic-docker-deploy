@@ -29,19 +29,25 @@ services:
       - mautic
 
   mautic_web:
-    image: mautic/mautic:5-apache
-    container_name: mautic-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    #container_name: mautic-web
     restart: unless-stopped
     ports:
       - "8081:80"
-    volumes: *mautic-volumes
+    volumes:
+      - ./mautic/config:/var/www/html/config:z
+      - ./mautic/logs:/var/www/html/var/logs:z
+      - ./mautic/media/files:/var/www/html/media/files:z
+      - ./mautic/media/images:/var/www/html/media/images:z
     environment:
       - MAUTIC_DB_HOST=db
       - MAUTIC_DB_USER=${MYSQL_USER}
       - MAUTIC_DB_PASSWORD=${MYSQL_PASSWORD}
       - MAUTIC_DB_NAME=${MYSQL_DATABASE}
       - MAUTIC_RUN_CRON_JOBS=false
-      - APACHE_DOCUMENT_ROOT=/var/www/html/docroot
+      #- APACHE_DOCUMENT_ROOT=/var/www/html/docroot
 
     depends_on:
       db:
