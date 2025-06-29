@@ -1,54 +1,20 @@
-version: "3.8"
-
-x-mautic-volumes: &mautic-volumes
-  - ./mautic/config:/var/www/html/config:z
-  - ./mautic/logs:/var/www/html/var/logs:z
-  - ./mautic/media/files:/var/www/html/media/files:z
-  - ./mautic/media/images:/var/www/html/media/images:z
-  - ./cron:/opt/mautic/cron:z
+version: "3.9"
 
 services:
-  db:
-    build:
-      context: ./db
-      dockerfile: Dockerfile
-    environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
-      - MYSQL_DATABASE=${MYSQL_DATABASE}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-    volumes:
-      - db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 3306 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    networks:
-      - mautic
-
   mautic_web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    #container_name: mautic-web
+    image: mautic/mautic:5-apache
+    container_name: mautic-web
     restart: unless-stopped
-    ports:
-      - "8081:80"
-    volumes:
-      - ./mautic/config:/var/www/html/config:z
-      - ./mautic/logs:/var/www/html/var/logs:z
-      - ./mautic/media/files:/var/www/html/media/files:z
-      - ./mautic/media/images:/var/www/html/media/images:z
     environment:
       - MAUTIC_DB_HOST=db
       - MAUTIC_DB_USER=${MYSQL_USER}
       - MAUTIC_DB_PASSWORD=${MYSQL_PASSWORD}
       - MAUTIC_DB_NAME=${MYSQL_DATABASE}
       - MAUTIC_RUN_CRON_JOBS=false
-      #- APACHE_DOCUMENT_ROOT=/var/www/html/docroot
-
+    volumes:
+      - ./mautic/config:/var/www/html/app/config:z
+      - ./mautic/media:/var/www/html/media:z
+      - ./mautic/logs:/var/www/html/var/logs:z
     depends_on:
       db:
         condition: service_healthy
@@ -61,60 +27,41 @@ services:
       - mautic
       - traefik
 
-  mautic_cron:
-    image: mautic/mautic:5-apache
-    container_name: mautic-cron
+  db:
+    image: mariadb:10.6
+    container_name: mautic-db
     restart: unless-stopped
-    volumes: *mautic-volumes
     environment:
-      - MAUTIC_DB_HOST=db
-      - MAUTIC_DB_USER=${MYSQL_USER}
-      - MAUTIC_DB_PASSWORD=${MYSQL_PASSWORD}
-      - MAUTIC_DB_NAME=${MYSQL_DATABASE}
-      - MAUTIC_RUN_CRON_JOBS=true
-      - MAUTIC_CRON_JOBS=segments:update,campaigns:rebuild,campaigns:trigger
-    depends_on:
-      mautic_web:
-        condition: service_started
-    networks:
-      - mautic
-
-  mautic_worker:
-    image: mautic/mautic:5-apache
-    container_name: mautic-worker
-    restart: unless-stopped
-    volumes: *mautic-volumes
-    environment:
-      - MAUTIC_DB_HOST=db
-      - MAUTIC_DB_USER=${MYSQL_USER}
-      - MAUTIC_DB_PASSWORD=${MYSQL_PASSWORD}
-      - MAUTIC_DB_NAME=${MYSQL_DATABASE}
-      - MAUTIC_RUN_CRON_JOBS=true
-      - MAUTIC_CRON_JOBS=queue:process
-    depends_on:
-      mautic_web:
-        condition: service_started
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - mautic
 
   traefik:
     image: traefik:v2.10
     container_name: traefik
+    restart: unless-stopped
     command:
-      - "--api.insecure=true"
       - "--providers.docker=true"
-      - "--entrypoints.web.address=:80"
+      - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.myresolver.acme.tlschallenge=true"
-      - "--certificatesresolvers.myresolver.acme.email=${EMAIL}"
+      - "--certificatesresolvers.myresolver.acme.email=${ACME_EMAIL}"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
-      - "80:80"
       - "443:443"
-      - "8080:8080"
     volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./letsencrypt:/letsencrypt"
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./letsencrypt:/letsencrypt
     networks:
       - traefik
 
@@ -124,4 +71,3 @@ volumes:
 networks:
   mautic:
   traefik:
-    external: true
