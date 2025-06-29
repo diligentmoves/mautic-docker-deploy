@@ -9,8 +9,10 @@ x-mautic-volumes: &mautic-volumes
 
 services:
   db:
-    image: mariadb:11.2
-    container_name: mautic-db
+    build:
+      context: ./db
+      dockerfile: Dockerfile
+      container_name: mautic-db
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
