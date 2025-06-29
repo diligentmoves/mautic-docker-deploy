@@ -4,7 +4,7 @@ set -e
 REPO_USER="diligentmoves"
 REPO_NAME="mautic-docker-deploy"
 BRANCH="main"
-TARGET_DIR="mautic-docker"
+TARGET_DIR="mautic-docker-deploy"
 
 echo "🧹 Cleaning up old containers and folders..."
 docker rm -f mautic-web mautic-db mautic-cron mautic-worker traefik 2>/dev/null || true
