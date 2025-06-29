@@ -12,7 +12,6 @@ services:
     build:
       context: ./db
       dockerfile: Dockerfile
-      container_name: mautic-db
     environment:
       - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
       - MYSQL_DATABASE=${MYSQL_DATABASE}
