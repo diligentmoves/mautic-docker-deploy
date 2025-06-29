@@ -29,17 +29,18 @@ services:
       - mautic
 
   mautic_web:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: mautic/mautic:v5-apache
     container_name: mautic-web
+    restart: unless-stopped
     ports:
       - "8081:80"
     volumes: *mautic-volumes
     environment:
-      - DOCKER_MAUTIC_ROLE=web
-    env_file:
-      - .mautic_env
+      - MAUTIC_DB_HOST=db
+      - MAUTIC_DB_USER=${MYSQL_USER}
+      - MAUTIC_DB_PASSWORD=${MYSQL_PASSWORD}
+      - MAUTIC_DB_NAME=${MYSQL_DATABASE}
+      - MAUTIC_RUN_CRON_JOBS=false
     depends_on:
       db:
         condition: service_healthy
@@ -53,15 +54,17 @@ services:
       - traefik
 
   mautic_cron:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: mautic/mautic:v5-apache
     container_name: mautic-cron
+    restart: unless-stopped
     volumes: *mautic-volumes
     environment:
-      - DOCKER_MAUTIC_ROLE=cron
-    env_file:
-      - .mautic_env
+      - MAUTIC_DB_HOST=db
+      - MAUTIC_DB_USER=${MYSQL_USER}
+      - MAUTIC_DB_PASSWORD=${MYSQL_PASSWORD}
+      - MAUTIC_DB_NAME=${MYSQL_DATABASE}
+      - MAUTIC_RUN_CRON_JOBS=true
+      - MAUTIC_CRON_JOBS=segments:update,campaigns:rebuild,campaigns:trigger
     depends_on:
       mautic_web:
         condition: service_started
@@ -69,15 +72,17 @@ services:
       - mautic
 
   mautic_worker:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    image: mautic/mautic:v5-apache
     container_name: mautic-worker
+    restart: unless-stopped
     volumes: *mautic-volumes
     environment:
-      - DOCKER_MAUTIC_ROLE=worker
-    env_file:
-      - .mautic_env
+      - MAUTIC_DB_HOST=db
+      - MAUTIC_DB_USER=${MYSQL_USER}
+      - MAUTIC_DB_PASSWORD=${MYSQL_PASSWORD}
+      - MAUTIC_DB_NAME=${MYSQL_DATABASE}
+      - MAUTIC_RUN_CRON_JOBS=true
+      - MAUTIC_CRON_JOBS=queue:process
     depends_on:
       mautic_web:
         condition: service_started
