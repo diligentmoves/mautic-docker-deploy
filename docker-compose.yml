@@ -41,6 +41,8 @@ services:
       - MAUTIC_DB_PASSWORD=${MYSQL_PASSWORD}
       - MAUTIC_DB_NAME=${MYSQL_DATABASE}
       - MAUTIC_RUN_CRON_JOBS=false
+      - APACHE_DOCUMENT_ROOT=/var/www/html/docroot
+
     depends_on:
       db:
         condition: service_healthy
