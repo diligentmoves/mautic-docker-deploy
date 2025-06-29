@@ -29,7 +29,7 @@ services:
       - mautic
 
   mautic_web:
-    image: mautic/mautic:v5-apache
+    image: mautic/mautic:5-apache
     container_name: mautic-web
     restart: unless-stopped
     ports:
@@ -54,7 +54,7 @@ services:
       - traefik
 
   mautic_cron:
-    image: mautic/mautic:v5-apache
+    image: mautic/mautic:5-apache
     container_name: mautic-cron
     restart: unless-stopped
     volumes: *mautic-volumes
@@ -72,7 +72,7 @@ services:
       - mautic
 
   mautic_worker:
-    image: mautic/mautic:v5-apache
+    image: mautic/mautic:5-apache
     container_name: mautic-worker
     restart: unless-stopped
     volumes: *mautic-volumes
